@@ -11,6 +11,8 @@ Classic endless runner game with jumping dinosaur avoiding obstacles.
 - Progressive difficulty
 - High score tracking
 
+📖 **[Detailed Dino Game Documentation](docs/DINO_GAME.md)**
+
 ### 2. Brick Breaker
 Classic arcade brick breaker game with paddle and ball.
 - Button controls for paddle movement
@@ -26,6 +28,8 @@ Falling blocks puzzle game with 7 different tetromino shapes.
 - Line clearing mechanics
 - Progressive difficulty
 - Score tracking (100 points per line)
+
+📖 **[Detailed Block Game Documentation](docs/BLOCK_GAME.md)**
 
 ## Features
 
@@ -154,10 +158,22 @@ Falling blocks puzzle game with 7 different tetromino shapes.
 
 ## Building and Flashing
 
+### Quick Start
+
 1. Open the project in STM32CubeIDE
 2. Build the project (Ctrl+B)
 3. Connect your STM32F401 board via ST-Link
 4. Flash and run (Ctrl+F11)
+
+📖 **[Complete Build and Flash Guide](docs/BUILD.md)**
+
+The build guide includes:
+- Detailed hardware setup and wiring diagrams
+- Software installation instructions
+- Step-by-step build process
+- Multiple flashing methods
+- Troubleshooting common issues
+- Advanced configuration options
 
 ## Gameplay
 
@@ -207,7 +223,18 @@ stm32_project-dino/
 
 ## Documentation
 
-- **[Brick Breaker Game Guide](docs/BRICK_GAME.md)** - Detailed documentation for the Brick Breaker game
+Detailed game guides with complete technical documentation:
+
+- **[Chrome Dino Runner Guide](docs/DINO_GAME.md)** - Complete guide for the endless runner game
+- **[Brick Breaker Guide](docs/BRICK_GAME.md)** - Detailed documentation for the brick breaker game
+- **[Block Blaster Guide](docs/BLOCK_GAME.md)** - Complete guide for the Tetris-like puzzle game
+
+Each guide includes:
+- Gameplay instructions and controls
+- Technical specifications and constants
+- Code structure and algorithms
+- Strategy tips and troubleshooting
+- Future enhancement ideas
 
 ## Technical Details
 
