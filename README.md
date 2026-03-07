@@ -1,24 +1,57 @@
-# STM32 Chrome Dino Game
+# STM32 Game Console
 
-A Chrome Dino runner game implementation for STM32F401 microcontroller with ST7735 TFT display.
+A dual-game console for STM32F401 microcontroller featuring Chrome Dino Runner and Brick Breaker games with ST7735 TFT display.
+
+## Games
+
+### 1. Chrome Dino Runner
+Classic endless runner game with jumping dinosaur avoiding obstacles.
+- Touch sensor to jump
+- Ambient light adaptive display (dark/light modes)
+- Progressive difficulty
+- High score tracking
+
+### 2. Brick Breaker
+Classic arcade brick breaker game with paddle and ball.
+- Button controls for paddle movement
+- 35 bricks to destroy
+- Physics-based ball bouncing
+- Score tracking
+
+📖 **[Detailed Brick Game Documentation](docs/BRICK_GAME.md)**
 
 ## Features
 
-- **Optimized Performance**: Running at 84 MHz with 10.5 MHz SPI for smooth gameplay
-- **Touch Control**: Touch sensor on PC8 for jumping
-- **Audio Feedback**: Buzzer with gameplay beeps and game over sounds
+### Menu System
+- **Game Selection**: Choose between Dino Runner and Brick Breaker
+- **Visual Interface**: Clear game names with selection highlight
+- **Button Navigation**: SW1/SW3 to navigate, Touch to select
+
+### Performance
+- **Optimized Speed**: 84 MHz system clock with 10.5 MHz SPI
+- **Smooth Graphics**: Batched display transfers (256-byte chunks)
+- **Responsive Controls**: 16ms game tick rate (62.5 FPS)
+
+### Audio Feedback
+- **Gameplay Beeps**: Double beep pattern during play
+- **Game Over**: 3 long beeps (1.5s each) with 0.25s gaps
+- **Menu Sounds**: Confirmation beeps for selections
+
+### Visual Feedback
 - **RGB LED Indicators**: 
+  - Yellow: Menu
   - Green: Playing
-  - Blue: Jumping
+  - Blue: Jumping/Brick hit
   - Red: Game Over
-- **Ambient Light Sensor**: Automatically switches between dark and light display modes
-- **Score Tracking**: High score persistence across games
+- **Ambient Light Sensor**: Auto display mode (Dino game only)
+- **Score Display**: Real-time score with high score tracking
 
 ## Hardware Requirements
 
 - STM32F401RET6 microcontroller
 - ST7735 128x160 TFT display
 - Touch sensor
+- 4 Push buttons
 - Buzzer
 - RGB LED
 - Ambient light sensor
@@ -32,10 +65,16 @@ A Chrome Dino runner game implementation for STM32F401 microcontroller with ST77
 - PB6: CS
 - PA9: DC
 
-### Input/Output
-- PC8: Touch sensor (input)
-- PB1: Ambient light sensor (input)
-- PA4: Buzzer (output)
+### Input Controls
+- PC8: Touch sensor
+- PB1: Ambient light sensor
+- PB8: SW1 (Menu Up)
+- PC6: SW2 (Paddle Right / Menu)
+- PB9: SW3 (Menu Down)
+- PC5: SW4 (Paddle Left / Menu)
+
+### Output
+- PA4: Buzzer
 
 ### RGB LED
 - PC2: Green
@@ -48,12 +87,50 @@ A Chrome Dino runner game implementation for STM32F401 microcontroller with ST77
 - PB10: LED2
 - PA1: LED1
 
+## Controls
+
+### Menu
+- **SW1 (PB8)**: Navigate up
+- **SW3 (PB9)**: Navigate down
+- **Touch (PC8)**: Select game
+
+### Dino Runner Game
+- **Touch (PC8)**: Jump
+- **Ambient Light**: Auto-adjusts display brightness
+
+### Brick Breaker Game
+- **SW4 (PC5)**: Move paddle left
+- **SW2 (PC6)**: Move paddle right
+- **Touch (PC8)**: Return to menu (after game over)
+
+## Game Modes
+
+### Menu
+- Fixed dark mode with white text
+- Green highlight for selected game
+- Yellow LED indicator
+
+### Dino Runner (Dark/Light Mode)
+**Dark Mode (Low Light)**
+- Black background
+- White characters and obstacles
+
+**Light Mode (Bright Light)**
+- White background
+- Black characters and obstacles
+
+### Brick Breaker
+- Fixed dark mode
+- Yellow bricks, blue paddle, red ball
+- 5 rows × 7 columns (35 bricks total)
+
 ## Performance Optimizations
 
 1. **84 MHz System Clock**: 5.25x faster than default 16 MHz
 2. **10.5 MHz SPI Speed**: 10.5x faster than original 1 MHz
 3. **Batched Display Transfers**: 256-byte chunks instead of per-pixel
 4. **Optimized Sprite Rendering**: One HAL call per scanline
+5. **Efficient Game Loop**: 16ms tick rate for smooth 62.5 FPS
 
 ## Building and Flashing
 
@@ -64,29 +141,95 @@ A Chrome Dino runner game implementation for STM32F401 microcontroller with ST77
 
 ## Gameplay
 
+### Dino Runner
 - Touch PC8 to make the dino jump
 - Avoid the cacti obstacles
 - Score increases as you progress
 - Game speed increases over time
 - Display colors adapt to ambient lighting
 
-## Game Modes
-
-### Dark Mode (Low Light)
-- Black background
-- White characters and obstacles
-
-### Light Mode (Bright Light)
-- White background
-- Black characters and obstacles
+### Brick Breaker
+- Use SW4/SW2 to move paddle left/right
+- Break all bricks to win
+- Don't let the ball fall
+- Each brick is worth 10 points
+- Maximum score: 350 points
 
 ## Audio Cues
 
 ### During Gameplay
-- Double beep pattern with 0.7s gap
+- **Dino**: Double beep pattern with 0.7s gap
+- **Brick**: Beeps on wall/paddle/brick hits
 
 ### Game Over
 - 3 long beeps (1.5s each) with 0.25s gaps
+
+## Project Structure
+
+```
+stm32_project-dino/
+├── Core/
+│   ├── Inc/           # Header files
+│   └── Src/
+│       └── main.c     # Main game code
+├── Drivers/           # STM32 HAL drivers
+├── docs/
+│   └── BRICK_GAME.md  # Brick Breaker documentation
+└── README.md          # This file
+```
+
+## Documentation
+
+- **[Brick Breaker Game Guide](docs/BRICK_GAME.md)** - Detailed documentation for the Brick Breaker game
+
+## Technical Details
+
+### Memory Usage
+- Dino game variables: ~200 bytes
+- Brick game variables: ~100 bytes
+- Display buffer: 256 bytes (shared)
+- Sprite data: ~300 bytes (ROM)
+
+### Display Resolution
+- 128×160 pixels (ST7735)
+- 16-bit color (RGB565)
+
+### Game Constants
+- Dino tick rate: 16ms
+- Brick tick rate: 16ms
+- Menu update: 50ms
+
+## Troubleshooting
+
+### Display Issues
+- Check SPI connections (PA5, PA7)
+- Verify control pins (PC7, PB6, PA9)
+- Ensure 84 MHz clock configuration
+
+### Control Issues
+- Verify button connections (PB8, PC6, PB9, PC5)
+- Check touch sensor on PC8
+- Test ambient light sensor on PB1
+
+### Audio Issues
+- Check buzzer connection on PA4
+- Verify GPIO output configuration
+
+### LED Issues
+- Check RGB LED connections (PC0, PC2, PC3)
+- Verify GPIO initialization
+
+## Future Enhancements
+
+Possible improvements:
+
+1. **More Games**: Snake, Tetris, Pong
+2. **High Score Persistence**: EEPROM/Flash storage
+3. **Sound Effects**: Different tones for events
+4. **Multiplayer**: Two-player modes
+5. **Difficulty Levels**: Easy, Medium, Hard
+6. **Achievements**: Unlock system
+7. **Custom Themes**: User-selectable color schemes
 
 ## License
 
@@ -95,3 +238,9 @@ This project is open source and available for educational purposes.
 ## Author
 
 Dhanush G Kulal
+
+## Acknowledgments
+
+- STM32 HAL Library
+- ST7735 Display Driver
+- Chrome Dino Game (inspiration)
