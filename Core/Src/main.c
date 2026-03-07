@@ -26,7 +26,7 @@
 /* ===========================================================================
    TYPEDEFS
    =========================================================================== */
-typedef enum { APP_MENU, APP_DINO, APP_BRICK } AppState;
+typedef enum { APP_MENU, APP_DINO, APP_BRICK, APP_BLOCKS } AppState;
 typedef enum { GS_TITLE, GS_PLAYING, GS_GAMEOVER } GameState;
 
 /* ===========================================================================
@@ -129,6 +129,17 @@ static uint16_t COLOR_BG, COLOR_DINO, COLOR_OBSTACLE, COLOR_GROUND, COLOR_SCORE,
 #define COLOR_BALL       0xF800
 #define COLOR_BRICK      0xFFE0
 
+/* Block colors */
+static const uint16_t BLOCK_COL[7] = {
+  0xF800, // Red
+  0x07E0, // Green
+  0x001F, // Blue
+  0xFFE0, // Yellow
+  0xF81F, // Magenta
+  0x07FF, // Cyan
+  0xFD20  // Orange
+};
+
 /* ===========================================================================
    DINO GAME CONSTANTS
    =========================================================================== */
@@ -164,6 +175,16 @@ static uint16_t COLOR_BG, COLOR_DINO, COLOR_OBSTACLE, COLOR_GROUND, COLOR_SCORE,
 #define BRICK_ROWS    5
 #define BRICK_COLS    7
 #define BRICK_START_Y 20
+
+/* ===========================================================================
+   BLOCK GAME CONSTANTS (Tetris-like)
+   =========================================================================== */
+#define BLOCK_SIZE    6
+#define GRID_W        10
+#define GRID_H        20
+#define GRID_X        24
+#define GRID_Y        20
+#define BLOCK_COLORS  7
 
 /* ===========================================================================
    TIMING
@@ -216,6 +237,24 @@ typedef struct { int16_t x,y; uint8_t w,h,large,active; } Obstacle;
 typedef struct { int16_t x,y; uint8_t active; } Cloud;
 typedef struct { uint8_t active; } Brick;
 
+/* Tetromino shapes (4x4 grid) */
+static const uint8_t SHAPES[7][4][4] = {
+  // I
+  {{0,0,0,0},{1,1,1,1},{0,0,0,0},{0,0,0,0}},
+  // O
+  {{0,0,0,0},{0,1,1,0},{0,1,1,0},{0,0,0,0}},
+  // T
+  {{0,0,0,0},{0,1,0,0},{1,1,1,0},{0,0,0,0}},
+  // S
+  {{0,0,0,0},{0,1,1,0},{1,1,0,0},{0,0,0,0}},
+  // Z
+  {{0,0,0,0},{1,1,0,0},{0,1,1,0},{0,0,0,0}},
+  // J
+  {{0,0,0,0},{1,0,0,0},{1,1,1,0},{0,0,0,0}},
+  // L
+  {{0,0,0,0},{0,0,1,0},{1,1,1,0},{0,0,0,0}}
+};
+
 /* ===========================================================================
    GLOBALS
    =========================================================================== */
@@ -251,6 +290,17 @@ static Brick      bricks[BRICK_ROWS][BRICK_COLS];
 static uint32_t   brick_score;
 static uint32_t   brick_hi_score;
 static uint8_t    bricks_remaining;
+
+/* Block game (Tetris) */
+static GameState  block_state;
+static uint8_t    grid[GRID_H][GRID_W];
+static int8_t     curr_x, curr_y;
+static uint8_t    curr_shape, curr_rot;
+static uint8_t    curr_block[4][4];
+static uint32_t   block_score;
+static uint32_t   block_hi_score;
+static uint32_t   drop_timer;
+static uint16_t   drop_delay;
 
 /* Common */
 static uint8_t    touch_prev, sw1_prev, sw2_prev, sw3_prev, sw4_prev;
@@ -297,6 +347,15 @@ static void Dino_GameOver(void);
 static void Brick_Init(void);
 static void Brick_Tick(void);
 static void Brick_GameOver(void);
+
+static void Block_Init(void);
+static void Block_Tick(void);
+static void Block_GameOver(void);
+static uint8_t Block_CheckCollision(int8_t x, int8_t y, uint8_t rot);
+static void Block_LockPiece(void);
+static void Block_ClearLines(void);
+static void Block_NewPiece(void);
+static void Block_RotatePiece(void);
 
 /* ===========================================================================
    TFT DRIVER
@@ -520,74 +579,91 @@ static void Menu_Draw(void){
   uint16_t sel_col = 0x07E0;  // Green selection
   
   // Title "GAMES"
-  TFT_FillRect(35,15,58,25,text_col);
-  TFT_FillRect(37,17,54,21,COLOR_BG);
-  TFT_FillRect(40,22,48,11,text_col);
+  TFT_FillRect(35,10,58,20,text_col);
+  TFT_FillRect(37,12,54,16,COLOR_BG);
+  TFT_FillRect(40,16,48,8,text_col);
   
   // Game 1: DINO
-  uint16_t y1=60;
+  uint16_t y1=45;
   if(menu_selection==0){
-    TFT_FillRect(15,y1-5,98,25,sel_col);
-    TFT_FillRect(17,y1-3,94,21,COLOR_BG);
+    TFT_FillRect(15,y1-5,98,22,sel_col);
+    TFT_FillRect(17,y1-3,94,18,COLOR_BG);
   }
   // Draw "DINO" text
-  TFT_FillRect(25,y1+2,8,12,text_col);   // D
-  TFT_FillRect(25,y1+2,15,3,text_col);
-  TFT_FillRect(25,y1+11,15,3,text_col);
-  TFT_FillRect(37,y1+2,8,12,text_col);
-  
-  TFT_FillRect(50,y1+2,3,12,text_col);   // I
-  
-  TFT_FillRect(58,y1+2,3,12,text_col);   // N
-  TFT_FillRect(58,y1+2,12,3,text_col);
-  TFT_FillRect(67,y1+2,3,12,text_col);
-  
-  TFT_FillRect(75,y1+2,12,12,text_col);  // O
-  TFT_FillRect(77,y1+4,8,8,COLOR_BG);
+  TFT_FillRect(25,y1+2,8,10,text_col);
+  TFT_FillRect(25,y1+2,12,3,text_col);
+  TFT_FillRect(25,y1+9,12,3,text_col);
+  TFT_FillRect(35,y1+2,8,10,text_col);
+  TFT_FillRect(48,y1+2,3,10,text_col);
+  TFT_FillRect(56,y1+2,3,10,text_col);
+  TFT_FillRect(56,y1+2,10,3,text_col);
+  TFT_FillRect(63,y1+2,3,10,text_col);
+  TFT_FillRect(71,y1+2,10,10,text_col);
+  TFT_FillRect(73,y1+4,6,6,COLOR_BG);
   
   // Game 2: BRICK
-  uint16_t y2=100;
+  uint16_t y2=80;
   if(menu_selection==1){
-    TFT_FillRect(15,y2-5,98,25,sel_col);
-    TFT_FillRect(17,y2-3,94,21,COLOR_BG);
+    TFT_FillRect(15,y2-5,98,22,sel_col);
+    TFT_FillRect(17,y2-3,94,18,COLOR_BG);
   }
   // Draw "BRICK" text
-  TFT_FillRect(20,y2+2,12,12,text_col);  // B
-  TFT_FillRect(22,y2+4,8,3,COLOR_BG);
-  TFT_FillRect(22,y2+9,8,3,COLOR_BG);
+  TFT_FillRect(18,y2+2,10,10,text_col);
+  TFT_FillRect(20,y2+4,6,2,COLOR_BG);
+  TFT_FillRect(20,y2+8,6,2,COLOR_BG);
+  TFT_FillRect(32,y2+2,10,10,text_col);
+  TFT_FillRect(34,y2+4,6,6,COLOR_BG);
+  TFT_FillRect(39,y2+7,3,5,text_col);
+  TFT_FillRect(46,y2+2,3,10,text_col);
+  TFT_FillRect(53,y2+2,10,3,text_col);
+  TFT_FillRect(53,y2+9,10,3,text_col);
+  TFT_FillRect(53,y2+2,3,10,text_col);
+  TFT_FillRect(67,y2+2,3,10,text_col);
+  TFT_FillRect(67,y2+6,7,3,text_col);
+  TFT_FillRect(71,y2+2,3,5,text_col);
+  TFT_FillRect(71,y2+8,3,4,text_col);
   
-  TFT_FillRect(37,y2+2,12,12,text_col);  // R
-  TFT_FillRect(39,y2+4,8,8,COLOR_BG);
-  TFT_FillRect(45,y2+8,3,6,text_col);
-  
-  TFT_FillRect(53,y2+2,3,12,text_col);   // I
-  
-  TFT_FillRect(61,y2+2,12,3,text_col);   // C
-  TFT_FillRect(61,y2+11,12,3,text_col);
-  TFT_FillRect(61,y2+2,3,12,text_col);
-  
-  TFT_FillRect(78,y2+2,3,12,text_col);   // K
-  TFT_FillRect(78,y2+7,8,3,text_col);
-  TFT_FillRect(83,y2+2,3,6,text_col);
-  TFT_FillRect(83,y2+9,3,5,text_col);
+  // Game 3: BLOCKS
+  uint16_t y3=115;
+  if(menu_selection==2){
+    TFT_FillRect(15,y3-5,98,22,sel_col);
+    TFT_FillRect(17,y3-3,94,18,COLOR_BG);
+  }
+  // Draw "BLOCKS" text
+  TFT_FillRect(12,y3+2,10,10,text_col);
+  TFT_FillRect(14,y3+4,6,2,COLOR_BG);
+  TFT_FillRect(14,y3+8,6,2,COLOR_BG);
+  TFT_FillRect(26,y3+2,3,10,text_col);
+  TFT_FillRect(26,y3+9,8,3,text_col);
+  TFT_FillRect(31,y3+2,3,10,text_col);
+  TFT_FillRect(38,y3+2,10,10,text_col);
+  TFT_FillRect(40,y3+4,6,6,COLOR_BG);
+  TFT_FillRect(52,y3+2,3,10,text_col);
+  TFT_FillRect(52,y3+6,7,3,text_col);
+  TFT_FillRect(56,y3+2,3,5,text_col);
+  TFT_FillRect(56,y3+8,3,4,text_col);
+  TFT_FillRect(63,y3+2,10,3,text_col);
+  TFT_FillRect(63,y3+9,10,3,text_col);
+  TFT_FillRect(70,y3+2,3,10,text_col);
   
   // Instructions at bottom
-  TFT_FillRect(20,135,88,2,text_col);
-  TFT_FillRect(30,140,68,2,text_col);
-  TFT_FillRect(25,145,78,2,text_col);
+  TFT_FillRect(20,145,88,2,text_col);
+  TFT_FillRect(30,150,68,2,text_col);
 }
 
 static void Menu_Update(void){
   // No ambient light update in menu
   
   if(Button_Once(&sw1_prev, SW1_PRESSED)){
-    menu_selection = (menu_selection == 0) ? 1 : 0;
+    if(menu_selection > 0) menu_selection--;
+    else menu_selection = 2;
     Menu_Draw();
     BUZZER_ON(); HAL_Delay(50); BUZZER_OFF();
   }
   
   if(Button_Once(&sw3_prev, SW3_PRESSED)){
-    menu_selection = (menu_selection == 0) ? 1 : 0;
+    if(menu_selection < 2) menu_selection++;
+    else menu_selection = 0;
     Menu_Draw();
     BUZZER_ON(); HAL_Delay(50); BUZZER_OFF();
   }
@@ -597,9 +673,12 @@ static void Menu_Update(void){
     if(menu_selection == 0){
       app_state = APP_DINO;
       Dino_Init();
-    } else {
+    } else if(menu_selection == 1){
       app_state = APP_BRICK;
       Brick_Init();
+    } else {
+      app_state = APP_BLOCKS;
+      Block_Init();
     }
   }
 }
@@ -886,6 +965,250 @@ static void Brick_GameOver(void){
 }
 
 /* ===========================================================================
+   BLOCK GAME (Tetris-like)
+   =========================================================================== */
+static uint8_t Block_CheckCollision(int8_t x, int8_t y, uint8_t rot){
+  for(int r=0; r<4; r++){
+    for(int c=0; c<4; c++){
+      if(SHAPES[curr_shape][r][c]){
+        int8_t gx = x + c;
+        int8_t gy = y + r;
+        if(gx < 0 || gx >= GRID_W || gy >= GRID_H) return 1;
+        if(gy >= 0 && grid[gy][gx]) return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+static void Block_LockPiece(void){
+  for(int r=0; r<4; r++){
+    for(int c=0; c<4; c++){
+      if(SHAPES[curr_shape][r][c]){
+        int8_t gx = curr_x + c;
+        int8_t gy = curr_y + r;
+        if(gy >= 0 && gy < GRID_H && gx >= 0 && gx < GRID_W){
+          grid[gy][gx] = curr_shape + 1;
+        }
+      }
+    }
+  }
+}
+
+static void Block_ClearLines(void){
+  for(int r=GRID_H-1; r>=0; r--){
+    uint8_t full = 1;
+    for(int c=0; c<GRID_W; c++){
+      if(!grid[r][c]){ full = 0; break; }
+    }
+    if(full){
+      // Clear line
+      for(int rr=r; rr>0; rr--){
+        for(int c=0; c<GRID_W; c++){
+          grid[rr][c] = grid[rr-1][c];
+        }
+      }
+      for(int c=0; c<GRID_W; c++) grid[0][c] = 0;
+      block_score += 100;
+      r++; // Check same row again
+      BUZZER_ON(); HAL_Delay(100); BUZZER_OFF();
+      LED_SetColor(1, 1, 0); HAL_Delay(50); LED_SetColor(0, 1, 0);
+    }
+  }
+}
+
+static void Block_NewPiece(void){
+  curr_shape = (uint8_t)(RNG_Next() % 7);
+  curr_rot = 0;
+  curr_x = GRID_W / 2 - 2;
+  curr_y = -1;
+  drop_timer = 0;
+  
+  if(Block_CheckCollision(curr_x, curr_y, curr_rot)){
+    if(block_score > block_hi_score) block_hi_score = block_score;
+    block_state = GS_GAMEOVER;
+  }
+}
+
+static void Block_RotatePiece(void){
+  // Simple rotation: try to rotate, if collision, don't rotate
+  uint8_t old_rot = curr_rot;
+  curr_rot = (curr_rot + 1) % 4;
+  
+  // For simplicity, we don't implement full rotation matrix
+  // Just check if new position is valid
+  if(Block_CheckCollision(curr_x, curr_y, curr_rot)){
+    curr_rot = old_rot; // Revert
+  } else {
+    // Clear old piece before rotation
+    for(int r=0; r<4; r++){
+      for(int c=0; c<4; c++){
+        if(SHAPES[curr_shape][r][c]){
+          int8_t gx = curr_x + c;
+          int8_t gy = curr_y + r;
+          if(gy >= 0 && gy < GRID_H && gx >= 0 && gx < GRID_W){
+            if(!grid[gy][gx]){
+              TFT_FillRect(GRID_X + gx*BLOCK_SIZE, GRID_Y + gy*BLOCK_SIZE, BLOCK_SIZE-1, BLOCK_SIZE-1, COLOR_BG);
+            }
+          }
+        }
+      }
+    }
+    BUZZER_ON(); HAL_Delay(30); BUZZER_OFF();
+  }
+}
+
+static void Block_Init(void){
+  rng_seed ^= HAL_GetTick(); RNG_Next();
+  block_score = 0;
+  drop_delay = 15; // Frames before drop (faster: was 30)
+  
+  // Clear grid
+  for(int r=0; r<GRID_H; r++){
+    for(int c=0; c<GRID_W; c++){
+      grid[r][c] = 0;
+    }
+  }
+  
+  beep_timer = HAL_GetTick(); beep_state = 0; beep_count = 0;
+  LED_SetColor(0, 1, 0);
+  COLOR_BG = COLOR_BG_DARK;
+  COLOR_SCORE = COLOR_SCORE_DARK;
+  TFT_FillScreen(COLOR_BG);
+  
+  // Draw grid border once
+  TFT_FillRect(GRID_X-1, GRID_Y-1, GRID_W*BLOCK_SIZE+2, GRID_H*BLOCK_SIZE+2, 0xFFFF);
+  TFT_FillRect(GRID_X, GRID_Y, GRID_W*BLOCK_SIZE, GRID_H*BLOCK_SIZE, COLOR_BG);
+  
+  Block_NewPiece();
+  block_state = GS_PLAYING;
+}
+
+static void Block_Tick(void){
+  static int8_t old_x = 0, old_y = 0;
+  static uint8_t first_draw = 1;
+  
+  // Controls
+  if(Button_Once(&sw4_prev, SW4_PRESSED)){
+    if(!Block_CheckCollision(curr_x - 1, curr_y, curr_rot)){
+      curr_x--;
+      BUZZER_ON(); HAL_Delay(20); BUZZER_OFF();
+    }
+  }
+  
+  if(Button_Once(&sw2_prev, SW2_PRESSED)){
+    if(!Block_CheckCollision(curr_x + 1, curr_y, curr_rot)){
+      curr_x++;
+      BUZZER_ON(); HAL_Delay(20); BUZZER_OFF();
+    }
+  }
+  
+  if(Button_Once(&sw1_prev, SW1_PRESSED)){
+    Block_RotatePiece();
+  }
+  
+  // Drop logic
+  drop_timer++;
+  if(drop_timer >= drop_delay){
+    drop_timer = 0;
+    if(!Block_CheckCollision(curr_x, curr_y + 1, curr_rot)){
+      curr_y++;
+    } else {
+      // Lock piece
+      Block_LockPiece();
+      Block_ClearLines();
+      
+      // Redraw entire grid after locking
+      TFT_FillRect(GRID_X, GRID_Y, GRID_W*BLOCK_SIZE, GRID_H*BLOCK_SIZE, COLOR_BG);
+      for(int r=0; r<GRID_H; r++){
+        for(int c=0; c<GRID_W; c++){
+          if(grid[r][c]){
+            uint16_t col = BLOCK_COL[(grid[r][c]-1) % 7];
+            TFT_FillRect(GRID_X + c*BLOCK_SIZE, GRID_Y + r*BLOCK_SIZE, BLOCK_SIZE-1, BLOCK_SIZE-1, col);
+          }
+        }
+      }
+      
+      Block_NewPiece();
+      first_draw = 1;
+    }
+  }
+  
+  // Clear old piece position only if it moved
+  if(!first_draw && (old_x != curr_x || old_y != curr_y)){
+    for(int r=0; r<4; r++){
+      for(int c=0; c<4; c++){
+        if(SHAPES[curr_shape][r][c]){
+          int8_t gx = old_x + c;
+          int8_t gy = old_y + r;
+          if(gy >= 0 && gy < GRID_H && gx >= 0 && gx < GRID_W){
+            // Check if this position is not part of locked grid
+            if(!grid[gy][gx]){
+              TFT_FillRect(GRID_X + gx*BLOCK_SIZE, GRID_Y + gy*BLOCK_SIZE, BLOCK_SIZE-1, BLOCK_SIZE-1, COLOR_BG);
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // Draw current piece at new position
+  for(int r=0; r<4; r++){
+    for(int c=0; c<4; c++){
+      if(SHAPES[curr_shape][r][c]){
+        int8_t gx = curr_x + c;
+        int8_t gy = curr_y + r;
+        if(gy >= 0 && gy < GRID_H && gx >= 0 && gx < GRID_W){
+          uint16_t col = BLOCK_COL[curr_shape];
+          TFT_FillRect(GRID_X + gx*BLOCK_SIZE, GRID_Y + gy*BLOCK_SIZE, BLOCK_SIZE-1, BLOCK_SIZE-1, col);
+        }
+      }
+    }
+  }
+  
+  old_x = curr_x;
+  old_y = curr_y;
+  first_draw = 0;
+  
+  // Score (only update if changed)
+  static uint32_t last_score = 0;
+  if(block_score != last_score){
+    TFT_FillRect(0, 0, 50, 15, COLOR_BG);
+    TFT_DrawNumber(5, 5, block_score, 5, COLOR_SCORE);
+    last_score = block_score;
+  }
+  
+  Buzzer_Update();
+}
+
+static void Block_GameOver(void){
+  BUZZER_OFF();
+  LED_SetColor(1, 0, 0);
+  
+  for(int f=0;f<3;f++){
+    TFT_FillRect(0,20,TFT_WIDTH,TFT_HEIGHT-20,COLOR_FLASH); HAL_Delay(90);
+    TFT_FillRect(0,20,TFT_WIDTH,TFT_HEIGHT-20,COLOR_BG); HAL_Delay(90);
+  }
+  
+  TFT_FillRect(20,60,88,40,COLOR_GROUND);
+  TFT_FillRect(22,62,84,36,COLOR_BG);
+  TFT_DrawNumber(30,68,block_score,5,COLOR_SCORE);
+  TFT_DrawNumber(30,82,block_hi_score,5,COLOR_SCORE);
+  
+  for(int b=0; b<3; b++){
+    BUZZER_ON(); HAL_Delay(1500); BUZZER_OFF();
+    if(b < 2) HAL_Delay(250);
+  }
+  
+  touch_prev=0;
+  while(!Touch_Once()) HAL_Delay(20);
+  HAL_Delay(200);
+  
+  app_state = APP_MENU;
+  Menu_Init();
+}
+
+/* ===========================================================================
    MAIN
    =========================================================================== */
 int main(void){
@@ -901,6 +1224,7 @@ int main(void){
   
   dino_hi_score = 0;
   brick_hi_score = 0;
+  block_hi_score = 0;
   
   Menu_Init();
   
@@ -922,6 +1246,13 @@ int main(void){
         if(HAL_GetTick()-lt>=TICK_MS){ lt=HAL_GetTick(); Brick_Tick(); }
       } else {
         Brick_GameOver();
+      }
+    }
+    else if(app_state == APP_BLOCKS){
+      if(block_state == GS_PLAYING){
+        if(HAL_GetTick()-lt>=TICK_MS){ lt=HAL_GetTick(); Block_Tick(); }
+      } else {
+        Block_GameOver();
       }
     }
   }
