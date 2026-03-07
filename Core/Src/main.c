@@ -970,7 +970,7 @@ static void Brick_GameOver(void){
 static uint8_t Block_CheckCollision(int8_t x, int8_t y, uint8_t rot){
   for(int r=0; r<4; r++){
     for(int c=0; c<4; c++){
-      if(SHAPES[curr_shape][r][c]){
+      if(curr_block[r][c]){
         int8_t gx = x + c;
         int8_t gy = y + r;
         if(gx < 0 || gx >= GRID_W || gy >= GRID_H) return 1;
@@ -984,7 +984,7 @@ static uint8_t Block_CheckCollision(int8_t x, int8_t y, uint8_t rot){
 static void Block_LockPiece(void){
   for(int r=0; r<4; r++){
     for(int c=0; c<4; c++){
-      if(SHAPES[curr_shape][r][c]){
+      if(curr_block[r][c]){
         int8_t gx = curr_x + c;
         int8_t gy = curr_y + r;
         if(gy >= 0 && gy < GRID_H && gx >= 0 && gx < GRID_W){
@@ -1024,36 +1024,100 @@ static void Block_NewPiece(void){
   curr_y = -1;
   drop_timer = 0;
   
-  if(Block_CheckCollision(curr_x, curr_y, curr_rot)){
+  // Copy shape to curr_block
+  for(int r=0; r<4; r++){
+    for(int c=0; c<4; c++){
+      curr_block[r][c] = SHAPES[curr_shape][r][c];
+    }
+  }
+  
+  // Check collision
+  uint8_t collision = 0;
+  for(int r=0; r<4; r++){
+    for(int c=0; c<4; c++){
+      if(curr_block[r][c]){
+        int8_t gx = curr_x + c;
+        int8_t gy = curr_y + r;
+        if(gx < 0 || gx >= GRID_W || gy >= GRID_H){
+          collision = 1;
+          break;
+        }
+        if(gy >= 0 && grid[gy][gx]){
+          collision = 1;
+          break;
+        }
+      }
+    }
+    if(collision) break;
+  }
+  
+  if(collision){
     if(block_score > block_hi_score) block_hi_score = block_score;
     block_state = GS_GAMEOVER;
   }
 }
 
 static void Block_RotatePiece(void){
-  // Simple rotation: try to rotate, if collision, don't rotate
-  uint8_t old_rot = curr_rot;
-  curr_rot = (curr_rot + 1) % 4;
-  
-  // For simplicity, we don't implement full rotation matrix
-  // Just check if new position is valid
-  if(Block_CheckCollision(curr_x, curr_y, curr_rot)){
-    curr_rot = old_rot; // Revert
-  } else {
-    // Clear old piece before rotation
-    for(int r=0; r<4; r++){
-      for(int c=0; c<4; c++){
-        if(SHAPES[curr_shape][r][c]){
-          int8_t gx = curr_x + c;
-          int8_t gy = curr_y + r;
-          if(gy >= 0 && gy < GRID_H && gx >= 0 && gx < GRID_W){
-            if(!grid[gy][gx]){
-              TFT_FillRect(GRID_X + gx*BLOCK_SIZE, GRID_Y + gy*BLOCK_SIZE, BLOCK_SIZE-1, BLOCK_SIZE-1, COLOR_BG);
-            }
+  // Clear old piece before rotation
+  for(int r=0; r<4; r++){
+    for(int c=0; c<4; c++){
+      if(SHAPES[curr_shape][r][c]){
+        int8_t gx = curr_x + c;
+        int8_t gy = curr_y + r;
+        if(gy >= 0 && gy < GRID_H && gx >= 0 && gx < GRID_W){
+          if(!grid[gy][gx]){
+            TFT_FillRect(GRID_X + gx*BLOCK_SIZE, GRID_Y + gy*BLOCK_SIZE, BLOCK_SIZE-1, BLOCK_SIZE-1, COLOR_BG);
           }
         }
       }
     }
+  }
+  
+  // Create rotated shape (90 degrees clockwise)
+  uint8_t rotated[4][4];
+  for(int r=0; r<4; r++){
+    for(int c=0; c<4; c++){
+      rotated[r][c] = SHAPES[curr_shape][3-c][r];
+    }
+  }
+  
+  // Temporarily store current shape
+  uint8_t temp[4][4];
+  for(int r=0; r<4; r++){
+    for(int c=0; c<4; c++){
+      temp[r][c] = curr_block[r][c];
+      curr_block[r][c] = rotated[r][c];
+    }
+  }
+  
+  // Check collision with rotated shape
+  uint8_t collision = 0;
+  for(int r=0; r<4; r++){
+    for(int c=0; c<4; c++){
+      if(curr_block[r][c]){
+        int8_t gx = curr_x + c;
+        int8_t gy = curr_y + r;
+        if(gx < 0 || gx >= GRID_W || gy >= GRID_H){
+          collision = 1;
+          break;
+        }
+        if(gy >= 0 && grid[gy][gx]){
+          collision = 1;
+          break;
+        }
+      }
+    }
+    if(collision) break;
+  }
+  
+  if(collision){
+    // Revert rotation
+    for(int r=0; r<4; r++){
+      for(int c=0; c<4; c++){
+        curr_block[r][c] = temp[r][c];
+      }
+    }
+  } else {
     BUZZER_ON(); HAL_Delay(30); BUZZER_OFF();
   }
 }
@@ -1138,7 +1202,7 @@ static void Block_Tick(void){
   if(!first_draw && (old_x != curr_x || old_y != curr_y)){
     for(int r=0; r<4; r++){
       for(int c=0; c<4; c++){
-        if(SHAPES[curr_shape][r][c]){
+        if(curr_block[r][c]){
           int8_t gx = old_x + c;
           int8_t gy = old_y + r;
           if(gy >= 0 && gy < GRID_H && gx >= 0 && gx < GRID_W){
@@ -1155,7 +1219,7 @@ static void Block_Tick(void){
   // Draw current piece at new position
   for(int r=0; r<4; r++){
     for(int c=0; c<4; c++){
-      if(SHAPES[curr_shape][r][c]){
+      if(curr_block[r][c]){
         int8_t gx = curr_x + c;
         int8_t gy = curr_y + r;
         if(gy >= 0 && gy < GRID_H && gx >= 0 && gx < GRID_W){
