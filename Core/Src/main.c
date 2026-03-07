@@ -575,80 +575,118 @@ static void Menu_Init(void){
 
 static void Menu_Draw(void){
   TFT_FillScreen(COLOR_BG);
-  uint16_t text_col = 0xFFFF;  // Always white text in menu
-  uint16_t sel_col = 0x07E0;  // Green selection
+  uint16_t text_col = 0xFFFF;  // White text
+  uint16_t sel_col = 0x07E0;   // Green selection
+  uint16_t border_col = 0x4208; // Gray border
   
-  // Title "GAMES"
-  TFT_FillRect(35,10,58,20,text_col);
-  TFT_FillRect(37,12,54,16,COLOR_BG);
-  TFT_FillRect(40,16,48,8,text_col);
+  // Title "GAME CONSOLE" at top
+  TFT_FillRect(10,8,108,18,text_col);
+  TFT_FillRect(12,10,104,14,COLOR_BG);
+  // "GAMES" text centered
+  TFT_FillRect(45,13,38,8,text_col);
   
-  // Game 1: DINO
-  uint16_t y1=45;
-  if(menu_selection==0){
-    TFT_FillRect(15,y1-5,98,22,sel_col);
-    TFT_FillRect(17,y1-3,94,18,COLOR_BG);
+  // Game cards with clean borders
+  uint16_t card_y[3] = {38, 78, 118};
+  const char* game_names[3] = {"DINO", "BRICK", "BLOCKS"};
+  
+  for(int i=0; i<3; i++){
+    uint16_t y = card_y[i];
+    
+    // Card background
+    if(menu_selection == i){
+      // Selected card - green border and highlight
+      TFT_FillRect(14, y-2, 100, 28, sel_col);
+      TFT_FillRect(16, y, 96, 24, COLOR_BG);
+      
+      // Selection indicator (arrow)
+      TFT_FillRect(20, y+8, 3, 8, sel_col);
+      TFT_FillRect(23, y+10, 3, 4, sel_col);
+      TFT_FillRect(26, y+12, 2, 1, sel_col);
+    } else {
+      // Unselected card - gray border
+      TFT_FillRect(14, y-2, 100, 28, border_col);
+      TFT_FillRect(16, y, 96, 24, COLOR_BG);
+    }
+    
+    // Draw game name
+    uint16_t text_x = (menu_selection == i) ? 32 : 24;
+    
+    if(i == 0){
+      // "DINO"
+      TFT_FillRect(text_x, y+6, 6, 12, text_col);      // D left
+      TFT_FillRect(text_x, y+6, 10, 2, text_col);      // D top
+      TFT_FillRect(text_x, y+16, 10, 2, text_col);     // D bottom
+      TFT_FillRect(text_x+8, y+6, 6, 12, text_col);    // D right curve
+      TFT_FillRect(text_x+8, y+8, 4, 8, COLOR_BG);     // D inner
+      
+      TFT_FillRect(text_x+18, y+6, 2, 12, text_col);   // I
+      
+      TFT_FillRect(text_x+24, y+6, 2, 12, text_col);   // N left
+      TFT_FillRect(text_x+24, y+6, 8, 2, text_col);    // N top
+      TFT_FillRect(text_x+30, y+6, 2, 12, text_col);   // N right
+      
+      TFT_FillRect(text_x+36, y+6, 10, 12, text_col);  // O
+      TFT_FillRect(text_x+38, y+8, 6, 8, COLOR_BG);    // O inner
+      
+    } else if(i == 1){
+      // "BRICK"
+      TFT_FillRect(text_x, y+6, 8, 12, text_col);      // B
+      TFT_FillRect(text_x+2, y+8, 4, 3, COLOR_BG);     // B top hole
+      TFT_FillRect(text_x+2, y+13, 4, 3, COLOR_BG);    // B bottom hole
+      
+      TFT_FillRect(text_x+12, y+6, 8, 12, text_col);   // R
+      TFT_FillRect(text_x+14, y+8, 4, 4, COLOR_BG);    // R hole
+      TFT_FillRect(text_x+17, y+12, 3, 6, text_col);   // R leg
+      
+      TFT_FillRect(text_x+24, y+6, 2, 12, text_col);   // I
+      
+      TFT_FillRect(text_x+30, y+6, 8, 2, text_col);    // C top
+      TFT_FillRect(text_x+30, y+16, 8, 2, text_col);   // C bottom
+      TFT_FillRect(text_x+30, y+6, 2, 12, text_col);   // C left
+      
+      TFT_FillRect(text_x+42, y+6, 2, 12, text_col);   // K left
+      TFT_FillRect(text_x+42, y+11, 6, 2, text_col);   // K middle
+      TFT_FillRect(text_x+46, y+6, 2, 6, text_col);    // K top right
+      TFT_FillRect(text_x+46, y+12, 2, 6, text_col);   // K bottom right
+      
+    } else {
+      // "BLOCKS"
+      TFT_FillRect(text_x, y+6, 8, 12, text_col);      // B
+      TFT_FillRect(text_x+2, y+8, 4, 3, COLOR_BG);
+      TFT_FillRect(text_x+2, y+13, 4, 3, COLOR_BG);
+      
+      TFT_FillRect(text_x+12, y+6, 2, 12, text_col);   // L
+      TFT_FillRect(text_x+12, y+16, 6, 2, text_col);
+      
+      TFT_FillRect(text_x+22, y+6, 8, 12, text_col);   // O
+      TFT_FillRect(text_x+24, y+8, 4, 8, COLOR_BG);
+      
+      TFT_FillRect(text_x+34, y+6, 8, 2, text_col);    // C
+      TFT_FillRect(text_x+34, y+16, 8, 2, text_col);
+      TFT_FillRect(text_x+34, y+6, 2, 12, text_col);
+      
+      TFT_FillRect(text_x+46, y+6, 2, 12, text_col);   // K
+      TFT_FillRect(text_x+46, y+11, 6, 2, text_col);
+      TFT_FillRect(text_x+50, y+6, 2, 6, text_col);
+      TFT_FillRect(text_x+50, y+12, 2, 6, text_col);
+      
+      TFT_FillRect(text_x+56, y+6, 6, 2, text_col);    // S top
+      TFT_FillRect(text_x+56, y+6, 2, 6, text_col);    // S top left
+      TFT_FillRect(text_x+56, y+11, 6, 2, text_col);   // S middle
+      TFT_FillRect(text_x+60, y+12, 2, 6, text_col);   // S bottom right
+      TFT_FillRect(text_x+56, y+16, 6, 2, text_col);   // S bottom
+    }
   }
-  // Draw "DINO" text
-  TFT_FillRect(25,y1+2,8,10,text_col);
-  TFT_FillRect(25,y1+2,12,3,text_col);
-  TFT_FillRect(25,y1+9,12,3,text_col);
-  TFT_FillRect(35,y1+2,8,10,text_col);
-  TFT_FillRect(48,y1+2,3,10,text_col);
-  TFT_FillRect(56,y1+2,3,10,text_col);
-  TFT_FillRect(56,y1+2,10,3,text_col);
-  TFT_FillRect(63,y1+2,3,10,text_col);
-  TFT_FillRect(71,y1+2,10,10,text_col);
-  TFT_FillRect(73,y1+4,6,6,COLOR_BG);
   
-  // Game 2: BRICK
-  uint16_t y2=80;
-  if(menu_selection==1){
-    TFT_FillRect(15,y2-5,98,22,sel_col);
-    TFT_FillRect(17,y2-3,94,18,COLOR_BG);
-  }
-  // Draw "BRICK" text
-  TFT_FillRect(18,y2+2,10,10,text_col);
-  TFT_FillRect(20,y2+4,6,2,COLOR_BG);
-  TFT_FillRect(20,y2+8,6,2,COLOR_BG);
-  TFT_FillRect(32,y2+2,10,10,text_col);
-  TFT_FillRect(34,y2+4,6,6,COLOR_BG);
-  TFT_FillRect(39,y2+7,3,5,text_col);
-  TFT_FillRect(46,y2+2,3,10,text_col);
-  TFT_FillRect(53,y2+2,10,3,text_col);
-  TFT_FillRect(53,y2+9,10,3,text_col);
-  TFT_FillRect(53,y2+2,3,10,text_col);
-  TFT_FillRect(67,y2+2,3,10,text_col);
-  TFT_FillRect(67,y2+6,7,3,text_col);
-  TFT_FillRect(71,y2+2,3,5,text_col);
-  TFT_FillRect(71,y2+8,3,4,text_col);
+  // Instructions at bottom with icons
+  TFT_FillRect(20,152,88,2,border_col);
+  // Small text hint
+  TFT_FillRect(28,156,3,2,text_col);  // Up arrow
+  TFT_FillRect(27,158,5,1,text_col);
+  TFT_FillRect(35,157,20,2,text_col); // "SW1/3"
   
-  // Game 3: BLOCKS
-  uint16_t y3=115;
-  if(menu_selection==2){
-    TFT_FillRect(15,y3-5,98,22,sel_col);
-    TFT_FillRect(17,y3-3,94,18,COLOR_BG);
-  }
-  // Draw "BLOCKS" text
-  TFT_FillRect(12,y3+2,10,10,text_col);
-  TFT_FillRect(14,y3+4,6,2,COLOR_BG);
-  TFT_FillRect(14,y3+8,6,2,COLOR_BG);
-  TFT_FillRect(26,y3+2,3,10,text_col);
-  TFT_FillRect(26,y3+9,8,3,text_col);
-  TFT_FillRect(31,y3+2,3,10,text_col);
-  TFT_FillRect(38,y3+2,10,10,text_col);
-  TFT_FillRect(40,y3+4,6,6,COLOR_BG);
-  TFT_FillRect(52,y3+2,3,10,text_col);
-  TFT_FillRect(52,y3+6,7,3,text_col);
-  TFT_FillRect(56,y3+2,3,5,text_col);
-  TFT_FillRect(56,y3+8,3,4,text_col);
-  TFT_FillRect(63,y3+2,10,3,text_col);
-  TFT_FillRect(63,y3+9,10,3,text_col);
-  TFT_FillRect(70,y3+2,3,10,text_col);
-  
-  // Instructions at bottom
-  TFT_FillRect(20,145,88,2,text_col);
-  TFT_FillRect(30,150,68,2,text_col);
+  TFT_FillRect(65,156,3,3,sel_col);   // Touch indicator
+  TFT_FillRect(70,157,25,2,text_col); // "SELECT"
 }
 
 static void Menu_Update(void){
@@ -1061,7 +1099,7 @@ static void Block_RotatePiece(void){
   // Clear old piece before rotation
   for(int r=0; r<4; r++){
     for(int c=0; c<4; c++){
-      if(SHAPES[curr_shape][r][c]){
+      if(curr_block[r][c]){
         int8_t gx = curr_x + c;
         int8_t gy = curr_y + r;
         if(gy >= 0 && gy < GRID_H && gx >= 0 && gx < GRID_W){
@@ -1073,11 +1111,26 @@ static void Block_RotatePiece(void){
     }
   }
   
-  // Create rotated shape (90 degrees clockwise)
+  // Increment rotation
+  curr_rot = (curr_rot + 1) % 4;
+  
+  // Apply rotation based on curr_rot (0, 1, 2, 3 = 0°, 90°, 180°, 270°)
   uint8_t rotated[4][4];
   for(int r=0; r<4; r++){
     for(int c=0; c<4; c++){
-      rotated[r][c] = SHAPES[curr_shape][3-c][r];
+      if(curr_rot == 0){
+        // 0 degrees - original
+        rotated[r][c] = SHAPES[curr_shape][r][c];
+      } else if(curr_rot == 1){
+        // 90 degrees clockwise
+        rotated[r][c] = SHAPES[curr_shape][3-c][r];
+      } else if(curr_rot == 2){
+        // 180 degrees
+        rotated[r][c] = SHAPES[curr_shape][3-r][3-c];
+      } else {
+        // 270 degrees clockwise (or 90 counter-clockwise)
+        rotated[r][c] = SHAPES[curr_shape][c][3-r];
+      }
     }
   }
   
@@ -1112,6 +1165,7 @@ static void Block_RotatePiece(void){
   
   if(collision){
     // Revert rotation
+    curr_rot = (curr_rot + 3) % 4; // Go back one rotation
     for(int r=0; r<4; r++){
       for(int c=0; c<4; c++){
         curr_block[r][c] = temp[r][c];
