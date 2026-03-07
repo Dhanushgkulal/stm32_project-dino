@@ -1,0 +1,24 @@
+# STM32CubeIDE
+Debug/
+Release/
+.settings/
+
+# Build files
+*.o
+*.d
+*.su
+*.elf
+*.bin
+*.hex
+*.map
+*.list
+
+# Eclipse
+.metadata
+.project
+.cproject
+
+# Temporary files
+*~
+*.swp
+*.bak
